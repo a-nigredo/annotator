@@ -1,6 +1,7 @@
 package dev.nigredo
 
 import java.io.{BufferedWriter, File, FileWriter}
+import java.nio.file.{FileSystems, Files}
 
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
@@ -24,11 +25,17 @@ object App {
     }.parse(args, CommandLineArgs()) match {
       case Some(config) =>
         val path = new File(config.path)
-        if (path.isFile)
-          showResult(run(List(path), config.annotation, config.logger))
-        else if (path.exists && path.isDirectory)
-          showResult(run(path.listFiles.filter(x => x.isFile && x.getName.endsWith(".scala")).toList, config.annotation, config.logger))
+        if (path.isFile) showResult(run(List(path), config.annotation, config.logger))
+        else if (path.exists && path.isDirectory) showResult(run(findFiles(path), config.annotation, config.logger))
       case None =>
+    }
+
+    def findFiles(path: File): List[File] = {
+      import collection.JavaConverters._
+      java.nio.file.Files.walk(FileSystems.getDefault.getPath(path.getPath)).iterator().asScala
+        .filter(Files.isRegularFile(_))
+        .toList
+        .map(_.toFile)
     }
 
     def showResult(data: List[(String, Int)]): Unit = {
