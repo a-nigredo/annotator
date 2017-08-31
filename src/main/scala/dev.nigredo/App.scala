@@ -94,9 +94,9 @@ object App {
               val changes = ListBuffer.empty[Int]
               val tokens = tree.tokens.tokens
               val annotated = tree.collect {
-                case t@q"$logField.$method($str)" if isLogField(logField) && isStrLit(str, tree) => getParentClassPos(t)
-                case t@q"$logField.$method($str, $cause)" if isLogField(logField) && str.is[Lit.String] => getParentClassPos(t)
-                case t@q"$logField.$method($str, ..$any)" if isLogField(logField) && str.is[Lit.String] => getParentClassPos(t)
+                case t@q"$logField.$method($str)" if isLogField(logField) => getParentClassPos(t)
+                case t@q"$logField.$method($str, $cause)" if isLogField(logField) => getParentClassPos(t)
+                case t@q"$logField.$method($str, ..$any)" if isLogField(logField) => getParentClassPos(t)
                 case t@q"$logField.$method($marker, $str)" if isLogField(logField) => getParentClassPos(t)
                 case t@q"$logField.$method($marker, $str, $cause)" if isLogField(logField) => getParentClassPos(t)
                 case t@q"$logField.$method($marker, $str, ..$any)" if isLogField(logField) => getParentClassPos(t)
