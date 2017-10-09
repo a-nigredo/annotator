@@ -43,18 +43,16 @@ object App {
 
     def run(files: List[File], annotation: String, loggerField: String): Unit = {
 
-      def isLogField(name: Term): Boolean = name.toString == loggerField
+      val annotationName = annotation.split("\\.")
+      val annotValue = if (annotationName.length > 1) annotationName.last
+      else annotationName.head
+      val annot = s"@$annotValue".tokenize.get.tokens
 
-      def isStrLit(t: Tree, p: Tree) = {
-        t match {
-          case _: Term.Name => p.collect {
-            case q"..$mods val ..$patsnel: $tpeopt = $expr" => patsnel.exists(t => expr.is[Lit.String])
-            case _ => false
-          }.nonEmpty
-          case t1: Term.ApplyInfix => t1.lhs.is[Lit.String]
-          case _: Lit.String => true
-          case _ => false
-        }
+      var addImport = false
+
+      def isLogField(name: Term): Boolean = {
+        addImport = true
+        name.toString == loggerField
       }
 
       val annotated = ListBuffer.empty[Defn]
@@ -89,7 +87,7 @@ object App {
       files.foreach { file =>
         Try(file.parse[Source]) match {
           case scala.util.Success(source) => source match {
-            case Error(pos, msg, details) => sys.error(msg)
+            case Error(_, msg, _) => sys.error(msg)
             case Success(tree) =>
               val changes = ListBuffer.empty[Int]
               val tokens = tree.tokens.tokens
@@ -107,13 +105,17 @@ object App {
                     case _ =>
                       changes += pos.start.line
                       val indent = zero.filter(_.pos.start.line == pos.start.line).takeWhile(_.is[Token.Space])
-                      val annot = annotation.tokenize.get.tokens.++:(indent)
-                      zero.filter(_.pos.start.line < pos.start.line) ++ annot ++ zero.filter(_.pos.start.line >= pos.start.line)
+                      zero.filter(_.pos.start.line < pos.start.line) ++ (annot.++:(indent)) ++ zero.filter(_.pos.start.line >= pos.start.line)
                   }
               }
               if (changes.nonEmpty) {
+                val content = if (addImport) {
+                  val (before, after) = annotated.span(_.isNot[Token.KwImport])
+                  val importAnnotation = s"import ${annotation.dropWhile(_ == '@')}".tokenize.get
+                  before.++(importAnnotation).++(after)
+                } else annotated
                 val bw = new BufferedWriter(new FileWriter(file))
-                bw.write(annotated.mkString)
+                bw.write(content.mkString)
                 bw.close()
                 println("*" * 50)
                 println(s"Annotate '${file.getPath}'. \r\n\t Lines: ${changes.mkString(",")}")
